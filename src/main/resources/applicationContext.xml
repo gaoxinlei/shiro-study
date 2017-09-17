@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:cache="http://www.springframework.org/schema/cache"
+	xsi:schemaLocation="http://www.springframework.org/schema/cache 
+		http://www.springframework.org/schema/cache/spring-cache.xsd
+		http://www.springframework.org/schema/beans 
+		http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context 
+		http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/aop 
+		http://www.springframework.org/schema/aop/spring-aop.xsd
+		http://www.springframework.org/schema/tx 
+		http://www.springframework.org/schema/tx/spring-tx.xsd">
+<!-- 自动扫描的包 --> 
+
+<context:property-placeholder  location="classpath:database.properties,classpath:wsdl.properties"/>
+<context:component-scan base-package="net.shiro.*">
+	<!-- 排除被controller,controlleradvice注解的类 -->
+	<context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+	<context:exclude-filter type="annotation" expression="org.springframework.web.bind.annotation.ControllerAdvice"/>
+</context:component-scan>
+<!-- 导入数据库配置 -->
+<!-- 数据源 -->
+<!-- <bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+	<property name="driverClass" value="com.mysql.jdbc.Driver" />
+	<property name="jdbcUrl" value="jdbc:mysql://localhost:3306/t_mall" />
+	<property name="user" value="root" />
+	<property name="password" value="root" />
+</bean> -->
+<!-- <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource">
+	<property name="driverClassName" value="com.mysql.jdbc.Driver" />
+	<property name="url" value="jdbc:mysql://localhost:3306/t_mall" />
+	<property name="username" value="root" />
+	<property name="password" value="root" />
+</bean> -->
+<bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+	<property name="driverClass" value="${jdbc.driver}" />
+	<property name="jdbcUrl" value="${jdbc.url}" />
+	<property name="user" value="${jdbc.username}" />
+	<property name="password" value="${jdbc.password}" />
+</bean>
+
+<!-- 配置事务管理器 -->
+<bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+	<property name="dataSource" ref="dataSource"></property>
+</bean> 
+<!-- 事务通知 -->
+<tx:advice transaction-manager="transactionManager" id="txAdvice">
+	<tx:attributes>
+		<tx:method name="get*" read-only="true"/> 
+		<tx:method name="save*" propagation="REQUIRES_NEW" rollback-for="java.lang.Exception"/>
+		<tx:method name="remove*" propagation="REQUIRES_NEW" rollback-for="java.lang.Exception"/>
+		<tx:method name="update*" propagation="REQUIRES_NEW" rollback-for="java.lang.Exception"/>
+		<tx:method name="delete*" propagation="REQUIRES_NEW" rollback-for="java.lang.Exception"/>
+	</tx:attributes>
+</tx:advice> 
+
+
+<!-- 事务切面 -->
+<aop:config>
+	<aop:pointcut expression="execution(* *..*Service.*(..))" id="txPointCut"/>
+	<aop:advisor advice-ref="txAdvice" pointcut-ref="txPointCut" id="txAdvisor"/>
+</aop:config>
+
+
+<!-- sqlSessionFactoryBean -->
+<bean id="sqlSessionFactoryBean" class="org.mybatis.spring.SqlSessionFactoryBean">
+	<property name="dataSource" ref="dataSource"></property>
+	<property name="configLocation" value="classpath:mybatis-config.xml"></property>
+</bean>
+<!-- mapperScanner -->
+<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+	<!-- <property name="sqlSessionFactory" ref="sqlSessionFactoryBean"></property> -->
+	<!-- 用下面的配置不要用上面的配置,不然找driver时context失效. -->
+	<property name="sqlSessionFactoryBeanName" value="sqlSessionFactoryBean" />
+	<property name="basePackage" value="net.shiro.mapper"></property>
+</bean>
+
+<!-- 自定义工厂bean,将webservice获得的接口配置在此. -->
+<!-- confirmService,即用户登陆时验证身份和注册时使用的webservice服务 -->
+<!-- <bean id="confirmService" class="net.shiro.factory.WebServiceFactoryBean">
+	<property name="objectType" value="net.shiro.loginservice.UserConfirmService"></property>
+	<property name="wsdl" value="${confirmService}"></property>
+</bean> -->
+<!-- 地址服务.用户填写地址时使用的服务 -->
+<!-- <bean id="addressService" class="net.shiro.factory.WebServiceFactoryBean">
+	<property name="objectType" value="net.shiro.loginservice.AddressService"></property>
+	<property name="wsdl" value="${addressService}"></property>
+</bean> -->
+<!-- 信息服务,用户填写个人信息时使用的服务 -->
+<!-- <bean id="infoService" class="net.shiro.factory.WebServiceFactoryBean">
+	<property name="objectType" value="net.shiro.loginservice.InfoService"></property>
+	<property name="wsdl" value="${infoService}"></property>
+</bean> -->
+<!-- shiro 核心组件 -->
+<bean id = "securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+	<!-- <property name="sessionMode" value="native"></property> -->
+	<property name="realm" ref="shiroRealm"></property>
+	<property name="cacheManager" ref="cacheManager"></property>
+</bean>
+<bean id="cacheManager" class="org.apache.shiro.cache.ehcache.EhCacheManager">
+	<property name="cacheManagerConfigFile" value="classpath:ehcache.xml"></property>
+</bean>
+<!-- realm -->
+<bean id="shiroRealm" class="net.shiro.realm.ShiroRealm"></bean>
+<!-- 
+	org.apache.shiro.spring.LifecycleBeanPostProcessor 
+	它可以自动调用配置在spring ioc容器中shiro bean的生命周期方法.
+-->
+<bean id="lifecycleBeanPostProcessor" class="org.apache.shiro.spring.LifecycleBeanPostProcessor">
+
+</bean>
+<!-- 启用spring ioc容器中 shiro的注解,但必须先配置 lifecycle-->
+<bean class="org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator" 
+	depends-on="lifecycleBeanPostProcessor">
+</bean>
+<bean class="org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor">
+	<property name="securityManager" ref="securityManager"></property>
+</bean>
+<!-- 远程调用 -->
+<!-- <bean class="org.apache.shiro.spring.remoting.SecureRemoteInvocationExecutor">
+	<property name="securityManager" ref="securityManager"></property>
+</bean> -->
+
+<!-- 配置shiroFilter,关键步骤 id必须为web.xml中配置的
+	DelegatingFilterProxy的filter-name-->
+<bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+	<property name="securityManager" ref="securityManager"></property>
+	<property name="loginUrl" value="/login.jsp"></property>
+	<property name="successUrl" value="/list.jsp"></property>
+	<property name="unauthorizedUrl" value="/unauthorized.jsp"></property>
+<!-- 配置哪些页面需要保护  anon 表示可匿名访问,authc表示登陆后才可以访问的页面-->
+	<property name="filterChainDefinitions">
+		<value>
+			/login.jsp = anon
+			/logo/* = anon
+			/img/* = anon
+			/js/* = anon
+			/css/* = anon
+			/*.jar = anon
+			/** = authc
+		</value>
+	</property>
+</bean>
+
+<!-- 开启动态代理和事务 -->
+<tx:annotation-driven transaction-manager="transactionManager"/>
+<aop:aspectj-autoproxy></aop:aspectj-autoproxy>
+</beans>
