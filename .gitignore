@@ -1,0 +1,12 @@
+ettings
+.classpath
+.factorypath
+.project
+target/
+src/main/generated/
+test-output
+.idea
+*.iml
+/target/
+scenario-stubs
+msran-regression-tests/src/main/java/com/ericsson/msran/demo/
