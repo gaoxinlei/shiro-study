@@ -137,13 +137,13 @@
 	<property name="filterChainDefinitions">
 		<value>
 			/login.jsp = anon
-			/index.jsp = anon
 			/logo/* = anon
 			/img/* = anon
 			/js/* = anon
 			/css/* = anon
 			/*.jar = anon
 			/login = anon
+			/shiro/logout = logout
 			/** = authc
 		</value>
 	</property>

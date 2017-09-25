@@ -8,5 +8,7 @@
 </head>
 <body>
 <h1>list.jsp</h1>
+<!-- 登出按钮 -->
+<a href="${pageContext.request.contextPath }/shiro/logout">logout</a>
 </body>
 </html>
