@@ -99,14 +99,53 @@
 <!-- shiro 核心组件 -->
 <bean id = "securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
 	<!-- <property name="sessionMode" value="native"></property> -->
-	<property name="realm" ref="shiroRealm"></property>
+	<!-- 单realm配置方式,只配置一个realm -->
+<!-- 	<property name="realm" ref="shiroRealm"></property> -->
+	<property name="authenticator" ref="authenticator"></property>
 	<property name="cacheManager" ref="cacheManager"></property>
+	<!-- 多realm配置方式,配置集合.可以配置在authenticator中,若配置在securityManager中,会自动赋给authenticator的
+	realms属性 -->
+	<property name="realms">
+		<list>
+			<ref bean="shiroRealm"/>
+			<ref bean="secondRealm"/>
+		</list>
+	</property>
 </bean>
 <bean id="cacheManager" class="org.apache.shiro.cache.ehcache.EhCacheManager">
 	<property name="cacheManagerConfigFile" value="classpath:ehcache.xml"></property>
 </bean>
 <!-- realm -->
-<bean id="shiroRealm" class="net.shiro.realm.ShiroRealm"></bean>
+<bean id="shiroRealm" class="net.shiro.realm.ShiroRealm">
+	<property name="credentialsMatcher">
+		<bean class="org.apache.shiro.authc.credential.HashedCredentialsMatcher">
+			<property name="hashAlgorithmName" value="MD5"></property>
+		</bean>
+	</property>
+</bean>
+<bean id="secondRealm" class="net.shiro.realm.SecondRealm">
+	<property name="credentialsMatcher">
+		<bean class="org.apache.shiro.authc.credential.HashedCredentialsMatcher">
+			<property name="hashAlgorithmName" value="SHA1"></property>
+		</bean>
+	</property>
+</bean>
+<!-- 多realm的验证器 -->
+<bean id="authenticator" class="org.apache.shiro.authc.pam.ModularRealmAuthenticator">
+<!-- realms 宜在sequrityManager中定义 -->
+	<!-- <property name="realms">
+		<list>
+			<ref bean="shiroRealm"/>
+			<ref bean="secondRealm"/>
+		</list>
+	</property> -->
+		<!-- 验证策略,默认是至少一个验证成功策略. -->
+	<property name="authenticationStrategy">
+		<!-- <bean class="org.apache.shiro.authc.pam.AllSuccessfulStrategy"></bean> -->
+		<bean class="org.apache.shiro.authc.pam.AtLeastOneSuccessfulStrategy"></bean>
+	</property>
+</bean>
+
 <!-- 
 	org.apache.shiro.spring.LifecycleBeanPostProcessor 
 	它可以自动调用配置在spring ioc容器中shiro bean的生命周期方法.
@@ -134,7 +173,8 @@
 	<property name="successUrl" value="/list.jsp"></property>
 	<property name="unauthorizedUrl" value="/unauthorized.jsp"></property>
 <!-- 配置哪些页面需要保护  anon 表示可匿名访问,authc表示登陆后才可以访问的页面-->
-	<property name="filterChainDefinitions">
+<!-- 方式一,写死在application.xml中,用property filterChainDefinitions -->
+	<!-- <property name="filterChainDefinitions">
 		<value>
 			/login.jsp = anon
 			/logo/* = anon
@@ -144,11 +184,18 @@
 			/*.jar = anon
 			/login = anon
 			/shiro/logout = logout
+			/user.jsp = roles[user]
+			/admin.jsp = roles[admin]
 			/** = authc
 		</value>
+	</property> -->
+<!-- 方式二,从数据库中查询相应记录封装成一个LinkedHashMap存入,本处可用实例工厂生成,且保证map中放入记录的顺序 -->
+	<property name="filterChainDefinitionMap">
+		<bean factory-bean="mapFactory" factory-method="getAuthMap"></bean>
 	</property>
 </bean>
-
+<!-- 生成LinkedHashMap的工厂bean -->
+<bean id="mapFactory" class="net.shiro.factory.MapFactory"></bean>
 <!-- 开启动态代理和事务 -->
 <tx:annotation-driven transaction-manager="transactionManager"/>
 <aop:aspectj-autoproxy></aop:aspectj-autoproxy>
